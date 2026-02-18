@@ -19,9 +19,9 @@ class TitleScene extends Phaser.Scene {
 
     const img = this.add.image(width / 2, height / 2, "titleScreen");
 
-    // Scale to cover the screen, then center crop
-    const cover = Math.max(width / img.width, height / img.height);
-    img.setScale(cover);
+    // FIX: Fit (contain) so Abby's Revenge text is not cropped
+    const fit = Math.min(width / img.width, height / img.height);
+    img.setScale(fit);
 
     const isTouch =
       this.input.touch && this.input.touch.enabled && this.sys.game.device.input.touch;
@@ -86,6 +86,13 @@ class MainScene extends Phaser.Scene {
       color: "#ffffff"
     }).setDepth(10);
 
+    // NEW: live debug counter so you can confirm enemies are spawning
+    this.debugText = this.add.text(14, 36, "", {
+      fontFamily: "system-ui, Segoe UI, Roboto, Arial",
+      fontSize: "14px",
+      color: "#ffffff"
+    }).setDepth(10);
+
     this.overText = this.add.text(width / 2, height / 2, "", {
       fontFamily: "system-ui, Segoe UI, Roboto, Arial",
       fontSize: "48px",
@@ -110,6 +117,9 @@ class MainScene extends Phaser.Scene {
     });
 
     this.updateUI();
+
+    // NEW: spawn one enemy immediately so you see gameplay right away
+    this.spawnEnemy();
   }
 
   fitSpriteScale(sprite, targetPixels) {
@@ -122,8 +132,11 @@ class MainScene extends Phaser.Scene {
     const x = Phaser.Math.Between(60, width - 60);
 
     const e = this.physics.add.sprite(x, -60, "enemy");
-    e.setScale(this.fitSpriteScale(e, 80));
-    e.setVelocityY(200);
+
+    // NEW: make enemies larger and a bit slower so they are obvious
+    e.setScale(this.fitSpriteScale(e, 110));
+    e.setVelocityY(160);
+
     e.body.setSize(e.width * 0.6, e.height * 0.6, true);
 
     this.enemies.add(e);
@@ -166,6 +179,13 @@ class MainScene extends Phaser.Scene {
   }
 
   update() {
+    // NEW: show counters so you can verify spawns and bullet creation
+    if (this.debugText) {
+      this.debugText.setText(
+        `Enemies: ${this.enemies.countActive(true)}  Bullets: ${this.bullets.countActive(true)}`
+      );
+    }
+
     if (Phaser.Input.Keyboard.JustDown(this.keys.R)) {
       this.scene.restart();
       return;
