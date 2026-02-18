@@ -1,12 +1,16 @@
+// Abby's Revenge
+// Clean restart: Title scene + simple visible gameplay
+// Uses the same asset names in /assets:
+// title.png, cat_player.png, cat_enemy.png, treat.png
+
 class TitleScene extends Phaser.Scene {
   constructor() {
     super("title");
   }
 
   preload() {
+    // Title + game assets
     this.load.image("titleScreen", "assets/title.png");
-
-    // Preload game assets
     this.load.image("player", "assets/cat_player.png");
     this.load.image("enemy", "assets/cat_enemy.png");
     this.load.image("treat", "assets/treat.png");
@@ -18,12 +22,12 @@ class TitleScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor("#070b18");
 
     const img = this.add.image(width / 2, height / 2, "titleScreen");
-
-    // Fit with margin so text never gets clipped
+    // Fit with margin so nothing gets clipped
     const fit = Math.min(width / img.width, height / img.height) * 0.92;
     img.setScale(fit);
 
-    const prompt = this.sys.game.device.input.touch ? "Tap to start" : "Press any key to start";
+    const isTouch = this.sys.game.device.input.touch;
+    const prompt = isTouch ? "Tap to start" : "Press Space to start";
 
     const startText = this.add.text(width / 2, height * 0.9, prompt, {
       fontFamily: "system-ui, Segoe UI, Roboto, Arial",
@@ -33,29 +37,36 @@ class TitleScene extends Phaser.Scene {
 
     this.tweens.add({
       targets: startText,
-      alpha: 0.2,
-      duration: 650,
+      alpha: 0.25,
+      duration: 700,
       yoyo: true,
       repeat: -1
     });
 
-    const startGame = () => this.scene.start("main");
-
-    this.input.once("pointerdown", startGame);
-    this.input.keyboard.once("keydown", startGame);
+    const start = () => this.scene.start("main");
+    this.input.once("pointerdown", start);
+    this.input.keyboard.once("keydown-SPACE", start);
+    this.input.keyboard.once("keydown-ENTER", start);
   }
 }
 
 class MainScene extends Phaser.Scene {
   constructor() {
     super("main");
+
     this.score = 0;
     this.lives = 3;
 
-    this.gameOver = false;
-
-    this.fireCooldownMs = 150;
     this.lastShotAt = 0;
+    this.fireCooldownMs = 160;
+
+    this.gameOver = false;
+    this.invulnUntil = 0;
+
+    this.spawnDelayMs = 900;
+    this.spawnTimer = 0;
+
+    this.touch = { left: false, right: false, up: false, down: false, shoot: false };
 
     this.stars = [];
   }
@@ -67,37 +78,36 @@ class MainScene extends Phaser.Scene {
   create() {
     const { width, height } = this.scale;
 
-    // Starfield background
+    // Background
+    this.cameras.main.setBackgroundColor("#070b18");
+
+    // Starfield
+    this.starGfx = this.add.graphics().setDepth(0);
     this.stars = [];
-    for (let i = 0; i < 90; i++) {
+    for (let i = 0; i < 110; i++) {
       this.stars.push({
         x: Math.random() * width,
         y: Math.random() * height,
         s: 1 + Math.random() * 2,
-        v: 40 + Math.random() * 140
+        v: 40 + Math.random() * 160
       });
     }
-    this.starGfx = this.add.graphics().setDepth(0);
-
-    // Debug markers for enemies
-    this.enemyGfx = this.add.graphics().setDepth(999);
 
     // Player
-    this.player = this.physics.add.sprite(width / 2, height * 0.82, "player");
+    this.player = this.physics.add.image(width / 2, height * 0.82, "player");
     this.player.setCollideWorldBounds(true);
     this.player.setDamping(true);
     this.player.setDrag(0.9);
     this.player.setMaxVelocity(420);
-
-    // Use display size instead of scale to handle PNGs with huge transparent padding
-    this.player.setDisplaySize(90, 90);
-    this.player.body.setSize(this.player.width * 0.55, this.player.height * 0.6, true);
+    // Use display size so giant transparent PNGs still show at a sane size
+    this.player.setDisplaySize(96, 96);
+    this.player.body.setSize(60, 60, true);
 
     // Groups
-    this.bullets = this.physics.add.group({ defaultKey: "treat", maxSize: 120 });
+    this.bullets = this.physics.add.group();
     this.enemies = this.physics.add.group();
 
-    // Controls
+    // Input
     this.cursors = this.input.keyboard.createCursorKeys();
     this.keys = this.input.keyboard.addKeys("W,A,S,D,SPACE,R");
 
@@ -108,119 +118,153 @@ class MainScene extends Phaser.Scene {
       color: "#ffffff"
     }).setDepth(10);
 
-    this.debugText = this.add.text(14, 36, "", {
-      fontFamily: "system-ui, Segoe UI, Roboto, Arial",
-      fontSize: "14px",
-      color: "#ffffff"
-    }).setDepth(10);
-
     this.overText = this.add.text(width / 2, height / 2, "", {
       fontFamily: "system-ui, Segoe UI, Roboto, Arial",
-      fontSize: "48px",
+      fontSize: "44px",
       color: "#ffffff",
       align: "center"
     }).setOrigin(0.5).setDepth(10);
 
+    // On screen controls for touch only
+    if (this.sys.game.device.input.touch) {
+      this.createTouchControls();
+    }
+
     // Collisions
-    this.physics.add.overlap(this.bullets, this.enemies, this.onBulletHitEnemy, null, this);
-    this.physics.add.overlap(this.player, this.enemies, this.onPlayerHitEnemy, null, this);
+    this.physics.add.overlap(this.bullets, this.enemies, this.hitEnemy, null, this);
+    this.physics.add.overlap(this.player, this.enemies, this.hitPlayer, null, this);
 
-    // Spawn enemies frequently for testing
-    this.time.addEvent({
-      delay: 300,
-      loop: true,
-      callback: () => {
-        if (!this.gameOver) this.spawnEnemy();
-      }
-    });
-
-    // Touch: tap to shoot
-    this.input.on("pointerdown", () => {
-      if (!this.gameOver) this.tryShoot();
-    });
+    // Spawn one immediately
+    this.spawnEnemy();
 
     this.updateUI();
+  }
 
-    // Spawn one immediately so you see it right away
-    this.spawnEnemy();
+  createTouchControls() {
+    const { width, height } = this.scale;
+
+    const makeBtn = (x, y, label) => {
+      const bg = this.add.circle(x, y, 34, 0xffffff, 0.14).setDepth(20);
+      const txt = this.add.text(x, y, label, {
+        fontFamily: "system-ui, Segoe UI, Roboto, Arial",
+        fontSize: "16px",
+        color: "#ffffff"
+      }).setOrigin(0.5).setDepth(21);
+      bg.setScrollFactor(0);
+      txt.setScrollFactor(0);
+      bg.setInteractive({ useHandCursor: false });
+      return { bg, txt };
+    };
+
+    const left = makeBtn(70, height - 90, "◀");
+    const right = makeBtn(150, height - 90, "▶");
+    const up = makeBtn(110, height - 140, "▲");
+    const down = makeBtn(110, height - 40, "▼");
+    const shoot = makeBtn(width - 90, height - 90, "F");
+
+    const setPress = (key, v) => (this.touch[key] = v);
+
+    left.bg.on("pointerdown", () => setPress("left", true));
+    left.bg.on("pointerup", () => setPress("left", false));
+    left.bg.on("pointerout", () => setPress("left", false));
+
+    right.bg.on("pointerdown", () => setPress("right", true));
+    right.bg.on("pointerup", () => setPress("right", false));
+    right.bg.on("pointerout", () => setPress("right", false));
+
+    up.bg.on("pointerdown", () => setPress("up", true));
+    up.bg.on("pointerup", () => setPress("up", false));
+    up.bg.on("pointerout", () => setPress("up", false));
+
+    down.bg.on("pointerdown", () => setPress("down", true));
+    down.bg.on("pointerup", () => setPress("down", false));
+    down.bg.on("pointerout", () => setPress("down", false));
+
+    shoot.bg.on("pointerdown", () => setPress("shoot", true));
+    shoot.bg.on("pointerup", () => setPress("shoot", false));
+    shoot.bg.on("pointerout", () => setPress("shoot", false));
   }
 
   updateUI() {
     this.ui.setText(`Score: ${this.score}   Lives: ${this.lives}`);
   }
 
-  tryShoot() {
-    const now = this.time.now;
-    if (now - this.lastShotAt < this.fireCooldownMs) return;
-    this.lastShotAt = now;
-
-    const b = this.bullets.get(this.player.x, this.player.y - 55);
-    if (!b) return;
-
-    b.setActive(true).setVisible(true).setAlpha(1);
-    b.setDepth(80);
-
-    // Use display size so treat always shows
-    b.setDisplaySize(22, 28);
-
-    b.body.enable = true;
-    b.setVelocity(0, -720);
-  }
-
   spawnEnemy() {
     const { width } = this.scale;
 
-    // Force center spawn ON screen
-    const x = Math.floor(width / 2);
+    // Spawn in visible region
+    const x = Phaser.Math.Between(80, width - 80);
 
-    const e = this.physics.add.sprite(x, 60, "enemy");
+    const e = this.physics.add.image(x, -40, "enemy");
     e.setActive(true).setVisible(true).setAlpha(1);
-    e.setDepth(60);
+    e.setDepth(5);
 
-    // Use display size to avoid huge transparent padding issues
-    e.setDisplaySize(120, 120);
+    // Force a consistent visible size regardless of PNG padding
+    e.setDisplaySize(110, 110);
+    e.body.setSize(70, 70, true);
 
-    e.setVelocity(0, 180);
-
-    // Reasonable hitbox
-    e.body.setSize(e.width * 0.6, e.height * 0.6, true);
+    // Straight down
+    e.setVelocity(0, Phaser.Math.Between(140, 220));
 
     this.enemies.add(e);
   }
 
-  onBulletHitEnemy(bullet, enemy) {
-    bullet.disableBody(true, true);
-    enemy.disableBody(true, true);
+  shoot() {
+    const now = this.time.now;
+    if (now - this.lastShotAt < this.fireCooldownMs) return;
+    this.lastShotAt = now;
+
+    const b = this.physics.add.image(this.player.x, this.player.y - 55, "treat");
+    b.setActive(true).setVisible(true).setAlpha(1);
+    b.setDepth(6);
+
+    // Force visible treat size
+    b.setDisplaySize(24, 30);
+    b.body.setSize(16, 20, true);
+
+    b.setVelocity(0, -720);
+
+    this.bullets.add(b);
+  }
+
+  hitEnemy(bullet, enemy) {
+    bullet.destroy();
+    enemy.destroy();
     this.score += 100;
     this.updateUI();
   }
 
-  onPlayerHitEnemy(player, enemy) {
-    enemy.disableBody(true, true);
+  hitPlayer(player, enemy) {
+    const now = this.time.now;
+    if (now < this.invulnUntil) return;
+
+    enemy.destroy();
+
     this.lives -= 1;
+    this.invulnUntil = now + 1200;
+
+    // Blink player for invulnerability feedback
+    this.tweens.add({
+      targets: this.player,
+      alpha: 0.2,
+      duration: 80,
+      yoyo: true,
+      repeat: 9,
+      onComplete: () => this.player.setAlpha(1)
+    });
+
     this.updateUI();
 
     if (this.lives <= 0) {
       this.gameOver = true;
       this.overText.setText("Game Over\nPress R to Restart");
+      this.player.setAcceleration(0, 0);
+      this.player.setVelocity(0, 0);
     }
   }
 
   update(time, delta) {
     const { width, height } = this.scale;
-
-    // Debug counters
-    const enemyLoaded = this.textures.exists("enemy");
-    this.debugText.setText(
-      `EnemyLoaded: ${enemyLoaded}  Enemies: ${this.enemies.countActive(true)}  Bullets: ${this.bullets.countActive(true)}`
-    );
-
-    // Restart
-    if (Phaser.Input.Keyboard.JustDown(this.keys.R)) {
-      this.scene.restart();
-      return;
-    }
-    if (this.gameOver) return;
 
     // Starfield
     const dt = delta / 1000;
@@ -235,34 +279,48 @@ class MainScene extends Phaser.Scene {
       this.starGfx.fillRect(s.x, s.y, s.s, s.s);
     }
 
-    // Enemy position markers (red dots) so you can see where enemies are even if sprite is invisible
-    this.enemyGfx.clear();
-    this.enemyGfx.fillStyle(0xff0000, 1);
-    this.enemies.children.iterate((e) => {
-      if (e && e.active) this.enemyGfx.fillCircle(e.x, e.y, 6);
-    });
+    // Restart
+    if (Phaser.Input.Keyboard.JustDown(this.keys.R)) {
+      this.scene.restart();
+      return;
+    }
 
-    // Movement
+    if (this.gameOver) return;
+
+    // Spawning
+    this.spawnTimer += delta;
+    if (this.spawnTimer >= this.spawnDelayMs) {
+      this.spawnTimer = 0;
+      this.spawnEnemy();
+      // speed up spawns slowly
+      this.spawnDelayMs = Math.max(350, this.spawnDelayMs * 0.992);
+    }
+
+    // Movement input (keyboard + touch)
     const accel = 900;
-    const left = this.cursors.left.isDown || this.keys.A.isDown;
-    const right = this.cursors.right.isDown || this.keys.D.isDown;
-    const up = this.cursors.up.isDown || this.keys.W.isDown;
-    const down = this.cursors.down.isDown || this.keys.S.isDown;
+
+    const left = this.cursors.left.isDown || this.keys.A.isDown || this.touch.left;
+    const right = this.cursors.right.isDown || this.keys.D.isDown || this.touch.right;
+    const up = this.cursors.up.isDown || this.keys.W.isDown || this.touch.up;
+    const down = this.cursors.down.isDown || this.keys.S.isDown || this.touch.down;
 
     this.player.setAccelerationX(left ? -accel : right ? accel : 0);
     this.player.setAccelerationY(up ? -accel : down ? accel : 0);
 
     // Shooting
-    if (this.cursors.space.isDown || this.keys.SPACE.isDown) this.tryShoot();
+    const wantShoot = this.cursors.space.isDown || this.keys.SPACE.isDown || this.touch.shoot;
+    if (wantShoot) this.shoot();
 
     // Cleanup bullets
     this.bullets.children.iterate((b) => {
-      if (b && b.active && b.y < -60) b.disableBody(true, true);
+      if (!b) return;
+      if (b.y < -80) b.destroy();
     });
 
-    // Cleanup enemies off screen
+    // Cleanup enemies that leave the screen
     this.enemies.children.iterate((e) => {
-      if (e && e.active && e.y > height + 120) e.disableBody(true, true);
+      if (!e) return;
+      if (e.y > height + 120) e.destroy();
     });
   }
 }
@@ -272,6 +330,7 @@ new Phaser.Game({
   parent: "game",
   width: 900,
   height: 600,
+  backgroundColor: "#070b18",
   physics: { default: "arcade", arcade: { debug: false } },
   scene: [TitleScene, MainScene],
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH }
