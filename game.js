@@ -6,7 +6,7 @@ class TitleScene extends Phaser.Scene {
   preload() {
     this.load.image("titleScreen", "assets/title.png");
 
-    // Preload game assets so the transition is instant
+    // Preload game assets so MainScene has everything ready
     this.load.image("player", "assets/cat_player.png");
     this.load.image("enemy", "assets/cat_enemy.png");
     this.load.image("treat", "assets/treat.png");
@@ -19,13 +19,11 @@ class TitleScene extends Phaser.Scene {
 
     const img = this.add.image(width / 2, height / 2, "titleScreen");
 
-    // FIX: Fit (contain) so Abby's Revenge text is not cropped
-    const fit = Math.min(width / img.width, height / img.height);
+    // Fit (contain) with a safety margin so no edge text can be clipped
+    const fit = Math.min(width / img.width, height / img.height) * 0.92;
     img.setScale(fit);
 
-    const isTouch =
-      this.input.touch && this.input.touch.enabled && this.sys.game.device.input.touch;
-
+    const isTouch = this.sys.game.device.input.touch;
     const prompt = isTouch ? "Tap to start" : "Press any key to start";
 
     const startText = this.add.text(width / 2, height * 0.9, prompt, {
@@ -57,22 +55,35 @@ class MainScene extends Phaser.Scene {
     this.fireCooldownMs = 150;
     this.lastShotAt = 0;
     this.gameOver = false;
+    this.stars = [];
   }
 
-  // Assets already loaded in TitleScene
-  preload() {}
+  preload() {
+    // Assets loaded in TitleScene
+  }
 
   create() {
     const { width, height } = this.scale;
 
-    this.cameras.main.setBackgroundColor("#070b18");
+    // Background stars so the game never looks like a blank black screen
+    this.stars = [];
+    for (let i = 0; i < 90; i++) {
+      this.stars.push({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        s: 1 + Math.random() * 2,
+        v: 40 + Math.random() * 140
+      });
+    }
+    this.starGfx = this.add.graphics();
 
     this.player = this.physics.add.sprite(width / 2, height * 0.82, "player");
     this.player.setCollideWorldBounds(true);
     this.player.setDamping(true);
     this.player.setDrag(0.9);
-    this.player.setMaxVelocity(400);
+    this.player.setMaxVelocity(420);
     this.player.setScale(this.fitSpriteScale(this.player, 90));
+    this.player.body.setSize(this.player.width * 0.55, this.player.height * 0.6, true);
 
     this.bullets = this.physics.add.group({ defaultKey: "treat", maxSize: 80 });
     this.enemies = this.physics.add.group();
@@ -86,7 +97,6 @@ class MainScene extends Phaser.Scene {
       color: "#ffffff"
     }).setDepth(10);
 
-    // NEW: live debug counter so you can confirm enemies are spawning
     this.debugText = this.add.text(14, 36, "", {
       fontFamily: "system-ui, Segoe UI, Roboto, Arial",
       fontSize: "14px",
@@ -103,6 +113,7 @@ class MainScene extends Phaser.Scene {
     this.physics.add.overlap(this.bullets, this.enemies, this.onBulletHitEnemy, null, this);
     this.physics.add.overlap(this.player, this.enemies, this.onPlayerHitEnemy, null, this);
 
+    // Spawn loop
     this.time.addEvent({
       delay: 900,
       loop: true,
@@ -111,14 +122,14 @@ class MainScene extends Phaser.Scene {
       }
     });
 
-    // Simple touch support: tap to shoot
+    // Touch: tap to shoot
     this.input.on("pointerdown", () => {
       if (!this.gameOver) this.tryShoot();
     });
 
     this.updateUI();
 
-    // NEW: spawn one enemy immediately so you see gameplay right away
+    // Spawn one immediately so you can see gameplay right away
     this.spawnEnemy();
   }
 
@@ -133,12 +144,11 @@ class MainScene extends Phaser.Scene {
 
     const e = this.physics.add.sprite(x, -60, "enemy");
 
-    // NEW: make enemies larger and a bit slower so they are obvious
+    // Big + slow enough to be obvious
     e.setScale(this.fitSpriteScale(e, 110));
     e.setVelocityY(160);
 
     e.body.setSize(e.width * 0.6, e.height * 0.6, true);
-
     this.enemies.add(e);
   }
 
@@ -178,21 +188,34 @@ class MainScene extends Phaser.Scene {
     this.ui.setText(`Score: ${this.score}   Lives: ${this.lives}`);
   }
 
-  update() {
-    // NEW: show counters so you can verify spawns and bullet creation
-    if (this.debugText) {
-      this.debugText.setText(
-        `Enemies: ${this.enemies.countActive(true)}  Bullets: ${this.bullets.countActive(true)}`
-      );
-    }
+  update(time, delta) {
+    // Debug counters prove the game loop is running
+    this.debugText.setText(
+      `Enemies: ${this.enemies.countActive(true)}  Bullets: ${this.bullets.countActive(true)}`
+    );
 
+    // Restart
     if (Phaser.Input.Keyboard.JustDown(this.keys.R)) {
       this.scene.restart();
       return;
     }
-
     if (this.gameOver) return;
 
+    // Starfield animation
+    const { width, height } = this.scale;
+    this.starGfx.clear();
+    this.starGfx.fillStyle(0xffffff, 0.85);
+    const dt = delta / 1000;
+    for (const s of this.stars) {
+      s.y += s.v * dt;
+      if (s.y > height) {
+        s.y = -5;
+        s.x = Math.random() * width;
+      }
+      this.starGfx.fillRect(s.x, s.y, s.s, s.s);
+    }
+
+    // Movement
     const accel = 800;
 
     const left = this.cursors.left.isDown || this.keys.A.isDown;
@@ -203,16 +226,18 @@ class MainScene extends Phaser.Scene {
     this.player.setAccelerationX(left ? -accel : right ? accel : 0);
     this.player.setAccelerationY(up ? -accel : down ? accel : 0);
 
+    // Shooting
     if (this.cursors.space.isDown || this.keys.SPACE.isDown) {
       this.tryShoot();
     }
 
+    // Cleanup
     this.bullets.children.iterate((b) => {
       if (b && b.active && b.y < -40) b.disableBody(true, true);
     });
 
     this.enemies.children.iterate((e) => {
-      if (e && e.active && e.y > 700) e.disableBody(true, true);
+      if (e && e.active && e.y > height + 80) e.disableBody(true, true);
     });
   }
 }
