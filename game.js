@@ -1,6 +1,6 @@
 // Abby's Revenge
-// Clean restart: Title scene + simple visible gameplay
-// Uses the same asset names in /assets:
+// Fresh, working baseline: Title screen + moving player + moving enemies + moving treats
+// Asset names in /assets (keep exactly):
 // title.png, cat_player.png, cat_enemy.png, treat.png
 
 class TitleScene extends Phaser.Scene {
@@ -9,7 +9,6 @@ class TitleScene extends Phaser.Scene {
   }
 
   preload() {
-    // Title + game assets
     this.load.image("titleScreen", "assets/title.png");
     this.load.image("player", "assets/cat_player.png");
     this.load.image("enemy", "assets/cat_enemy.png");
@@ -22,13 +21,10 @@ class TitleScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor("#070b18");
 
     const img = this.add.image(width / 2, height / 2, "titleScreen");
-    // Fit with margin so nothing gets clipped
     const fit = Math.min(width / img.width, height / img.height) * 0.92;
     img.setScale(fit);
 
-    const isTouch = this.sys.game.device.input.touch;
-    const prompt = isTouch ? "Tap to start" : "Press Space to start";
-
+    const prompt = this.sys.game.device.input.touch ? "Tap to start" : "Press Space to start";
     const startText = this.add.text(width / 2, height * 0.9, prompt, {
       fontFamily: "system-ui, Segoe UI, Roboto, Arial",
       fontSize: "22px",
@@ -78,7 +74,6 @@ class MainScene extends Phaser.Scene {
   create() {
     const { width, height } = this.scale;
 
-    // Background
     this.cameras.main.setBackgroundColor("#070b18");
 
     // Starfield
@@ -93,17 +88,18 @@ class MainScene extends Phaser.Scene {
       });
     }
 
-    // Player
-    this.player = this.physics.add.image(width / 2, height * 0.82, "player");
+    // Player (use sprite so physics + velocity always works)
+    this.player = this.physics.add.sprite(width / 2, height * 0.82, "player");
     this.player.setCollideWorldBounds(true);
     this.player.setDamping(true);
     this.player.setDrag(0.9);
     this.player.setMaxVelocity(420);
-    // Use display size so giant transparent PNGs still show at a sane size
+
+    // Force visible size regardless of PNG padding
     this.player.setDisplaySize(96, 96);
     this.player.body.setSize(60, 60, true);
 
-    // Groups
+    // Groups (dynamic bodies)
     this.bullets = this.physics.add.group();
     this.enemies = this.physics.add.group();
 
@@ -125,7 +121,7 @@ class MainScene extends Phaser.Scene {
       align: "center"
     }).setOrigin(0.5).setDepth(10);
 
-    // On screen controls for touch only
+    // Touch controls only on touch devices
     if (this.sys.game.device.input.touch) {
       this.createTouchControls();
     }
@@ -150,9 +146,11 @@ class MainScene extends Phaser.Scene {
         fontSize: "16px",
         color: "#ffffff"
       }).setOrigin(0.5).setDepth(21);
+
       bg.setScrollFactor(0);
       txt.setScrollFactor(0);
       bg.setInteractive({ useHandCursor: false });
+
       return { bg, txt };
     };
 
@@ -191,19 +189,15 @@ class MainScene extends Phaser.Scene {
 
   spawnEnemy() {
     const { width } = this.scale;
-
-    // Spawn in visible region
     const x = Phaser.Math.Between(80, width - 80);
 
-    const e = this.physics.add.image(x, -40, "enemy");
+    const e = this.physics.add.sprite(x, -60, "enemy");
     e.setActive(true).setVisible(true).setAlpha(1);
     e.setDepth(5);
 
-    // Force a consistent visible size regardless of PNG padding
     e.setDisplaySize(110, 110);
     e.body.setSize(70, 70, true);
 
-    // Straight down
     e.setVelocity(0, Phaser.Math.Between(140, 220));
 
     this.enemies.add(e);
@@ -214,11 +208,10 @@ class MainScene extends Phaser.Scene {
     if (now - this.lastShotAt < this.fireCooldownMs) return;
     this.lastShotAt = now;
 
-    const b = this.physics.add.image(this.player.x, this.player.y - 55, "treat");
+    const b = this.physics.add.sprite(this.player.x, this.player.y - 55, "treat");
     b.setActive(true).setVisible(true).setAlpha(1);
     b.setDepth(6);
 
-    // Force visible treat size
     b.setDisplaySize(24, 30);
     b.body.setSize(16, 20, true);
 
@@ -243,7 +236,6 @@ class MainScene extends Phaser.Scene {
     this.lives -= 1;
     this.invulnUntil = now + 1200;
 
-    // Blink player for invulnerability feedback
     this.tweens.add({
       targets: this.player,
       alpha: 0.2,
@@ -287,12 +279,11 @@ class MainScene extends Phaser.Scene {
 
     if (this.gameOver) return;
 
-    // Spawning
+    // Spawning (time-based, frame-rate independent)
     this.spawnTimer += delta;
     if (this.spawnTimer >= this.spawnDelayMs) {
       this.spawnTimer = 0;
       this.spawnEnemy();
-      // speed up spawns slowly
       this.spawnDelayMs = Math.max(350, this.spawnDelayMs * 0.992);
     }
 
@@ -313,14 +304,12 @@ class MainScene extends Phaser.Scene {
 
     // Cleanup bullets
     this.bullets.children.iterate((b) => {
-      if (!b) return;
-      if (b.y < -80) b.destroy();
+      if (b && b.active && b.y < -80) b.destroy();
     });
 
     // Cleanup enemies that leave the screen
     this.enemies.children.iterate((e) => {
-      if (!e) return;
-      if (e.y > height + 120) e.destroy();
+      if (e && e.active && e.y > height + 140) e.destroy();
     });
   }
 }
