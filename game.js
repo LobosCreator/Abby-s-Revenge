@@ -1,3 +1,54 @@
+class TitleScene extends Phaser.Scene {
+  constructor() {
+    super("title");
+  }
+
+  preload() {
+    this.load.image("titleScreen", "assets/title.png");
+
+    // Preload game assets so the transition is instant
+    this.load.image("player", "assets/cat_player.png");
+    this.load.image("enemy", "assets/cat_enemy.png");
+    this.load.image("treat", "assets/treat.png");
+  }
+
+  create() {
+    const { width, height } = this.scale;
+
+    this.cameras.main.setBackgroundColor("#070b18");
+
+    const img = this.add.image(width / 2, height / 2, "titleScreen");
+
+    // Scale to cover the screen, then center crop
+    const cover = Math.max(width / img.width, height / img.height);
+    img.setScale(cover);
+
+    const isTouch =
+      this.input.touch && this.input.touch.enabled && this.sys.game.device.input.touch;
+
+    const prompt = isTouch ? "Tap to start" : "Press any key to start";
+
+    const startText = this.add.text(width / 2, height * 0.9, prompt, {
+      fontFamily: "system-ui, Segoe UI, Roboto, Arial",
+      fontSize: "22px",
+      color: "#ffffff"
+    }).setOrigin(0.5);
+
+    this.tweens.add({
+      targets: startText,
+      alpha: 0.2,
+      duration: 650,
+      yoyo: true,
+      repeat: -1
+    });
+
+    const startGame = () => this.scene.start("main");
+
+    this.input.once("pointerdown", startGame);
+    this.input.keyboard.once("keydown", startGame);
+  }
+}
+
 class MainScene extends Phaser.Scene {
   constructor() {
     super("main");
@@ -8,11 +59,8 @@ class MainScene extends Phaser.Scene {
     this.gameOver = false;
   }
 
-  preload() {
-    this.load.image("player", "assets/cat_player.png");
-    this.load.image("enemy", "assets/cat_enemy.png");
-    this.load.image("treat", "assets/treat.png");
-  }
+  // Assets already loaded in TitleScene
+  preload() {}
 
   create() {
     const { width, height } = this.scale;
@@ -33,15 +81,16 @@ class MainScene extends Phaser.Scene {
     this.keys = this.input.keyboard.addKeys("W,A,S,D,SPACE,R");
 
     this.ui = this.add.text(14, 12, "", {
-      fontFamily: "Arial",
+      fontFamily: "system-ui, Segoe UI, Roboto, Arial",
       fontSize: "18px",
       color: "#ffffff"
     }).setDepth(10);
 
     this.overText = this.add.text(width / 2, height / 2, "", {
-      fontFamily: "Arial",
+      fontFamily: "system-ui, Segoe UI, Roboto, Arial",
       fontSize: "48px",
-      color: "#ffffff"
+      color: "#ffffff",
+      align: "center"
     }).setOrigin(0.5).setDepth(10);
 
     this.physics.add.overlap(this.bullets, this.enemies, this.onBulletHitEnemy, null, this);
@@ -50,7 +99,14 @@ class MainScene extends Phaser.Scene {
     this.time.addEvent({
       delay: 900,
       loop: true,
-      callback: () => { if (!this.gameOver) this.spawnEnemy(); }
+      callback: () => {
+        if (!this.gameOver) this.spawnEnemy();
+      }
+    });
+
+    // Simple touch support: tap to shoot
+    this.input.on("pointerdown", () => {
+      if (!this.gameOver) this.tryShoot();
     });
 
     this.updateUI();
@@ -147,6 +203,6 @@ new Phaser.Game({
   width: 900,
   height: 600,
   physics: { default: "arcade", arcade: { debug: false } },
-  scene: [MainScene],
+  scene: [TitleScene, MainScene],
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH }
 });
