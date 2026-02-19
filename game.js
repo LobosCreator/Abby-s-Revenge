@@ -467,11 +467,12 @@ class MainScene extends Phaser.Scene {
       e.y += e.vy * dt;
       e.x = e.baseX + Math.sin((time / 1000) * e.swaySpeed + e.swayOffset) * e.swayMag;
 
+      /*
       if (time >= e.fireAt) {
         this.enemyShoot(e, false);
         e.fireAt = time + Phaser.Math.Between(1100, 2400);
       }
-
+*/
       if (e.y > height + 130) {
         e.destroy();
         this.enemies.splice(i, 1);
