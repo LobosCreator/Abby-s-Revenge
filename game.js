@@ -52,7 +52,7 @@ class MainScene extends Phaser.Scene {
     super("main");
 
     this.score = 0;
-    this.lives = 3;
+    this.lives = 10;
     this.distance = 0;
 
     this.fireCooldownMs = 140;
