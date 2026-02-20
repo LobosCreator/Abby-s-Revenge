@@ -20,7 +20,7 @@ class TitleScene extends Phaser.Scene {
 
   create() {
     const { width, height } = this.scale;
-    this.cameras.main.setBackgroundColor("#7eb9ee");
+    this.cameras.main.setBackgroundColor("000000");
 
     const img = this.add.image(width / 2, height / 2, "titleScreen");
     const fit = Math.min(width / img.width, height / img.height) * 0.92;
