@@ -434,6 +434,12 @@ class MainScene extends Phaser.Scene {
     if (this.lives <= 0) {
       this.gameOver = true;
       this.overText.setText("Game Over\nPress R to Restart");
+    this.scene.start("gameover", {
+        score: this.score,
+        distance: this.distance,
+        kills: this.planesShotDown
+      });
+      
     }
   }
 
@@ -618,5 +624,6 @@ new Phaser.Game({
   height: 600,
   backgroundColor: "#7eb9ee",
   scene: [TitleScene, MainScene],
+  scene: [TitleScene, MainScene, GameOverScene],
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH }
 });
