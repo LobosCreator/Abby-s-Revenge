@@ -61,14 +61,20 @@ class GameOverScene extends Phaser.Scene {
     const distance = Math.floor(data?.distance ?? 0);
     const kills = data?.kills ?? 0;
 
-    this.add.text(width / 2, height * 0.3, "GAME OVER", {
-      fontFamily: "system-ui, Segoe UI, Roboto, Arial",
-      fontSize: "64px",
-      color: "#ffffff",
-      stroke: "#6f1d1d",
-      strokeThickness: 8
-    }).setOrigin(0.5);
-
+    if (this.textures.exists("game over")) {
+      const gameOverImage = this.add.image(width / 2, height * 0.24, "game over");
+      const fitScale = Math.min((width * 0.8) / gameOverImage.width, (height * 0.28) / gameOverImage.height);
+      gameOverImage.setScale(fitScale);
+    } else {
+      this.add.text(width / 2, height * 0.3, "GAME OVER", {
+        fontFamily: "system-ui, Segoe UI, Roboto, Arial",
+        fontSize: "64px",
+        color: "#ffffff",
+        stroke: "#6f1d1d",
+        strokeThickness: 8
+      }).setOrigin(0.5);
+    }
+    
     this.add.text(width / 2, height * 0.5, `Score: ${score}\nDistance: ${distance}m\nKills: ${kills}`, {
       fontFamily: "system-ui, Segoe UI, Roboto, Arial",
       fontSize: "28px",
