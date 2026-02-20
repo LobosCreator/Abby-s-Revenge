@@ -297,7 +297,7 @@ class MainScene extends Phaser.Scene {
     const textureKey = this.textures.exists("boss") ? "boss" : "enemy";
     const boss = this.add.image(width / 2, -140, textureKey).setDepth(40);
     boss.setDisplaySize(220, 220);
-    boss.hp = 10;
+    boss.hp = 20;
     boss.vy = 70;
     boss.swayMag = 160;
     boss.swaySpeed = 1.4;
