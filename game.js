@@ -58,13 +58,12 @@ preload() {
   }
   
   create(data) {
-    const { width, height } = this.scale;
     this.cameras.main.setBackgroundColor("#000000");
 
-    const gameOverImage = this.add.image(width / 2, height / 2, "gameOverScreen");
-    const fitScale = Math.min(width / gameOverImage.width, height / gameOverImage.height) * 0.7;
-    
-    gameOverImage.setScale(fitScale);
+ this.gameOverImage = this.add.image(0, 0, "gameOverScreen");
+    this.fitGameOverImage();
+
+    this.scale.on("resize", this.fitGameOverImage, this);   
 
     const restart = () => this.scene.start("main");
     const title = () => this.scene.start("title");
@@ -75,7 +74,23 @@ preload() {
     this.input.keyboard.once("keydown-ENTER", restart);
     this.input.keyboard.once("keydown-T", title);
   }
+
+fitGameOverImage() {
+    const { width, height } = this.scale;
+
+    if (!this.gameOverImage) return;
+
+    const fitScale = Math.min(
+      (width * 0.95) / this.gameOverImage.width,
+      (height * 0.95) / this.gameOverImage.height
+    );
+
+    this.gameOverImage
+      .setPosition(width / 2, height / 2)
+      .setScale(fitScale);
+  }
 }
+
 
 class MainScene extends Phaser.Scene {
   constructor() {
