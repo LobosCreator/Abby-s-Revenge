@@ -161,19 +161,32 @@ preload() {
   create(data) {
     this.cameras.main.setBackgroundColor("#000000");
 
- this.gameOverImage = this.add.image(0, 0, "gameOverScreen");
+    this.canLeaveGameOver = false;
+      
+    this.gameOverImage = this.add.image(0, 0, "gameOverScreen");
     this.fitGameOverImage();
 
     this.scale.on("resize", this.fitGameOverImage, this);   
 
-    const restart = () => this.scene.start("main");
-    const title = () => this.scene.start("title");
+   const restart = () => {
+      if (!this.canLeaveGameOver) return;
+      this.scene.start("main");
+    };
 
-    this.input.once("pointerdown", restart);
-    this.input.keyboard.once("keydown-R", restart);
-    this.input.keyboard.once("keydown-SPACE", restart);
-    this.input.keyboard.once("keydown-ENTER", restart);
-    this.input.keyboard.once("keydown-T", title);
+    const title = () => {
+      if (!this.canLeaveGameOver) return;
+      this.scene.start("title");
+    };
+
+   this.input.on("pointerdown", restart);
+    this.input.keyboard.on("keydown-R", restart);
+    this.input.keyboard.on("keydown-SPACE", restart);
+    this.input.keyboard.on("keydown-ENTER", restart);
+    this.input.keyboard.on("keydown-T", title);
+
+    this.time.delayedCall(5000, () => {
+      this.canLeaveGameOver = true;
+    });
  
   this.music = new ChiptuneScore(this, {
       bpm: 110,
@@ -186,6 +199,14 @@ preload() {
 
     this.events.once("shutdown", () => this.music.stop());
     this.events.once("destroy", () => this.music.stop());
+    this.events.once("shutdown", () => {
+      this.scale.off("resize", this.fitGameOverImage, this);
+      this.input.off("pointerdown", restart);
+      this.input.keyboard.off("keydown-R", restart);
+      this.input.keyboard.off("keydown-SPACE", restart);
+      this.input.keyboard.off("keydown-ENTER", restart);
+      this.input.keyboard.off("keydown-T", title);
+    });   
   }
 
 fitGameOverImage() {
