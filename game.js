@@ -161,7 +161,7 @@ preload() {
   create(data) {
     this.cameras.main.setBackgroundColor("#000000");
 
-    this.canLeaveGameOver = false;
+    this.gameOverInputUnlockAt = this.time.now + 5000;
       
     this.gameOverImage = this.add.image(0, 0, "gameOverScreen");
     this.fitGameOverImage();
@@ -169,12 +169,12 @@ preload() {
     this.scale.on("resize", this.fitGameOverImage, this);   
 
    const restart = () => {
-      if (!this.canLeaveGameOver) return;
+      if (this.time.now < this.gameOverInputUnlockAt) return;
       this.scene.start("main");
     };
 
     const title = () => {
-      if (!this.canLeaveGameOver) return;
+    if (this.time.now < this.gameOverInputUnlockAt) return;  
       this.scene.start("title");
     };
 
@@ -184,10 +184,6 @@ preload() {
     this.input.keyboard.on("keydown-ENTER", restart);
     this.input.keyboard.on("keydown-T", title);
 
-    this.time.delayedCall(5000, () => {
-      this.canLeaveGameOver = true;
-    });
- 
   this.music = new ChiptuneScore(this, {
       bpm: 110,
       melodyVolume: 0.045,
