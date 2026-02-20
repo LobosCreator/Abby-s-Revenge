@@ -15,7 +15,7 @@ class TitleScene extends Phaser.Scene {
     this.load.image("treat", "assets/treat.png");
     // Optional boss art (falls back to enemy if missing)
     this.load.image("boss", "assets/boss.png");
-    this.load.image("gameOverScreen", "assets/game over.png");
+    this.load.image("gameOverScreen", "assets/game_over.png");
   }
 
   create() {
@@ -54,7 +54,7 @@ class GameOverScene extends Phaser.Scene {
   }
 
 preload() {
-    this.load.image("gameOverScreen", "assets/game over.png");
+    this.load.image("gameOverScreen", "assets/game_over.png");
   }
   
   create(data) {
