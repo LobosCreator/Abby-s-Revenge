@@ -180,7 +180,7 @@ preload() {
 
    this.input.on("pointerdown", restart);
     this.input.keyboard.on("keydown-R", restart);
-    this.input.keyboard.on("keydown-SPACE", restart);
+    this.input.keyboard.on("keydown-N", restart);
     this.input.keyboard.on("keydown-ENTER", restart);
     this.input.keyboard.on("keydown-T", title);
 
@@ -199,7 +199,7 @@ preload() {
       this.scale.off("resize", this.fitGameOverImage, this);
       this.input.off("pointerdown", restart);
       this.input.keyboard.off("keydown-R", restart);
-      this.input.keyboard.off("keydown-SPACE", restart);
+      this.input.keyboard.off("keydown-N", restart);
       this.input.keyboard.off("keydown-ENTER", restart);
       this.input.keyboard.off("keydown-T", title);
     });   
