@@ -59,39 +59,11 @@ preload() {
   
   create(data) {
     const { width, height } = this.scale;
-    this.cameras.main.setBackgroundColor("#1f1f29");
+    this.cameras.main.setBackgroundColor("#000000");
 
-    const score = data?.score ?? 0;
-    const distance = Math.floor(data?.distance ?? 0);
-    const kills = data?.kills ?? 0;
-
-    if (this.textures.exists("game over")) {
-      const gameOverImage = this.add.image(width / 2, height * 0.24, "game over");
-      const fitScale = Math.min((width * 0.8) / gameOverImage.width, (height * 0.28) / gameOverImage.height);
-      gameOverImage.setScale(fitScale);
-    } else {
-      this.add.text(width / 2, height * 0.3, "GAME OVER", {
-        fontFamily: "system-ui, Segoe UI, Roboto, Arial",
-        fontSize: "64px",
-        color: "#ffffff",
-        stroke: "#6f1d1d",
-        strokeThickness: 8
-      }).setOrigin(0.5);
-    }
-    
-    this.add.text(width / 2, height * 0.5, `Score: ${score}\nDistance: ${distance}m\nKills: ${kills}`, {
-      fontFamily: "system-ui, Segoe UI, Roboto, Arial",
-      fontSize: "28px",
-      color: "#ffffff",
-      align: "center"
-    }).setOrigin(0.5);
-
-    this.add.text(width / 2, height * 0.78, "Press R / Space / Enter to Restart\nPress T for Title", {
-      fontFamily: "system-ui, Segoe UI, Roboto, Arial",
-      fontSize: "24px",
-      color: "#f0e68c",
-      align: "center"
-    }).setOrigin(0.5);
+  const gameOverImage = this.add.image(width / 2, height / 2, "gameOverScreen");
+    const fitScale = Math.max(width / gameOverImage.width, height / gameOverImage.height);
+    gameOverImage.setScale(fitScale);
 
     const restart = () => this.scene.start("main");
     const title = () => this.scene.start("title");
@@ -633,7 +605,6 @@ new Phaser.Game({
   width: 900,
   height: 600,
   backgroundColor: "#7eb9ee",
-  scene: [TitleScene, MainScene],
   scene: [TitleScene, MainScene, GameOverScene],
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH }
 });
