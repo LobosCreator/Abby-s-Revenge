@@ -61,8 +61,9 @@ preload() {
     const { width, height } = this.scale;
     this.cameras.main.setBackgroundColor("#000000");
 
-  const gameOverImage = this.add.image(width / 2, height / 2, "gameOverScreen");
-    const fitScale = Math.max(width / gameOverImage.width, height / gameOverImage.height);
+    const gameOverImage = this.add.image(width / 2, height / 2, "gameOverScreen");
+    const fitScale = Math.min(width / gameOverImage.width, height / gameOverImage.height) * 0.95;
+    
     gameOverImage.setScale(fitScale);
 
     const restart = () => this.scene.start("main");
