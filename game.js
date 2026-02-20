@@ -467,7 +467,7 @@ class MainScene extends Phaser.Scene {
     const textureKey = this.textures.exists("boss") ? "boss" : "enemy";
     const boss = this.add.image(width / 2, -140, textureKey).setDepth(40);
     boss.setDisplaySize(220, 220);
-    boss.hp = 50;
+    boss.hp = 100;
     boss.vy = 70;
     boss.swayMag = 160;
     boss.swaySpeed = 1.4;
@@ -478,7 +478,7 @@ class MainScene extends Phaser.Scene {
     }
 
     this.boss = boss;
-    this.overText.setText("BOSS INCOMING");
+    this.overText.setText("ZO ZO ATTACKS!");
     this.time.delayedCall(1000, () => {
       if (!this.gameOver) this.overText.setText("");
     });
@@ -676,8 +676,8 @@ class MainScene extends Phaser.Scene {
 
       if (time >= boss.fireAt) {
         this.enemyShoot(boss, true);
-        this.enemyShoot({ x: boss.x - 60, y: boss.y + 10 }, true);
-        this.enemyShoot({ x: boss.x + 60, y: boss.y + 10 }, true);
+        this.enemyShoot({ x: boss.x - 120, y: boss.y + 6 }, true);
+        this.enemyShoot({ x: boss.x + 120, y: boss.y + 6 }, true);
         boss.fireAt = time + Phaser.Math.Between(650, 1200);
       }
 
