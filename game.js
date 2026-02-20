@@ -3,6 +3,95 @@
 // Assets in /assets (exact names):
 // title.png, cat_player.png, cat_enemy.png, treat.png
 
+class ChiptuneScore {
+  constructor(scene, config) {
+    this.scene = scene;
+    this.config = config;
+    this.step = 0;
+    this.isPlaying = false;
+    this.timer = null;
+  }
+
+  static noteFrequency(note) {
+    if (!note) return null;
+    const match = /^([A-G])(#?)(\d)$/.exec(note);
+    if (!match) return null;
+
+    const [, key, sharp, octaveRaw] = match;
+    const octave = Number(octaveRaw);
+    const semitones = {
+      C: -9,
+      D: -7,
+      E: -5,
+      F: -4,
+      G: -2,
+      A: 0,
+      B: 2
+    };
+
+    const semitone = semitones[key] + (sharp ? 1 : 0) + (octave - 4) * 12;
+    return 440 * Math.pow(2, semitone / 12);
+  }
+
+  playTone(note, durationSec = 0.16, type = "square", volume = 0.06) {
+    const context = this.scene.sound?.context;
+    const freq = ChiptuneScore.noteFrequency(note);
+    if (!context || !freq) return;
+
+    const now = context.currentTime;
+    const gain = context.createGain();
+    const osc = context.createOscillator();
+
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, now);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(volume, now + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + durationSec);
+
+    osc.connect(gain);
+    gain.connect(context.destination);
+
+    osc.start(now);
+    osc.stop(now + durationSec + 0.02);
+  }
+
+  tick() {
+    const melody = this.config.melody;
+    const bass = this.config.bass;
+
+    const melodyNote = melody[this.step % melody.length];
+    const bassNote = bass[this.step % bass.length];
+
+    this.playTone(melodyNote, 0.15, "square", this.config.melodyVolume ?? 0.06);
+    this.playTone(bassNote, 0.2, "triangle", this.config.bassVolume ?? 0.05);
+
+    this.step += 1;
+  }
+
+  start() {
+    if (this.isPlaying) return;
+    this.isPlaying = true;
+    this.step = 0;
+    const bpm = this.config.bpm ?? 140;
+    const stepMs = (60_000 / bpm) / 2;
+
+    this.tick();
+    this.timer = this.scene.time.addEvent({
+      delay: stepMs,
+      loop: true,
+      callback: () => this.tick()
+    });
+  }
+
+  stop() {
+    this.isPlaying = false;
+    if (this.timer) {
+      this.timer.remove(false);
+      this.timer = null;
+    }
+  }
+}
+
 class TitleScene extends Phaser.Scene {
   constructor() {
     super("title");
@@ -45,6 +134,18 @@ class TitleScene extends Phaser.Scene {
     this.input.once("pointerdown", start);
     this.input.keyboard.once("keydown-SPACE", start);
     this.input.keyboard.once("keydown-ENTER", start);
+
+    this.music = new ChiptuneScore(this, {
+      bpm: 150,
+      melodyVolume: 0.05,
+      bassVolume: 0.04,
+      melody: ["E5", "G5", "A5", "B5", "A5", "G5", "E5", null, "D5", "E5", "G5", "A5", "G5", "E5", "D5", null],
+      bass: ["E3", null, "E3", null, "C3", null, "D3", null, "E3", null, "E3", null, "C3", null, "D3", null]
+    });
+    this.music.start();
+
+    this.events.once("shutdown", () => this.music.stop());
+    this.events.once("destroy", () => this.music.stop());
   }
 }
 
@@ -73,6 +174,18 @@ preload() {
     this.input.keyboard.once("keydown-SPACE", restart);
     this.input.keyboard.once("keydown-ENTER", restart);
     this.input.keyboard.once("keydown-T", title);
+ 
+  this.music = new ChiptuneScore(this, {
+      bpm: 110,
+      melodyVolume: 0.045,
+      bassVolume: 0.035,
+      melody: ["E4", null, "C4", null, "A3", null, "G3", null],
+      bass: ["E2", null, "C2", null, "A1", null, "G1", null]
+    });
+    this.music.start();
+
+    this.events.once("shutdown", () => this.music.stop());
+    this.events.once("destroy", () => this.music.stop());
   }
 
 fitGameOverImage() {
@@ -199,6 +312,18 @@ class MainScene extends Phaser.Scene {
 
     this.updateUI();
     this.spawnFormation();
+  
+  this.music = new ChiptuneScore(this, {
+      bpm: 165,
+      melodyVolume: 0.055,
+      bassVolume: 0.042,
+      melody: ["E5", "G5", "A5", "G5", "E5", "D5", "E5", null, "G5", "A5", "B5", "A5", "G5", "E5", "D5", null],
+      bass: ["E3", "E3", null, "E3", "C3", "C3", null, "D3", "E3", "E3", null, "E3", "C3", "C3", null, "D3"]
+    });
+    this.music.start();
+
+    this.events.once("shutdown", () => this.music.stop());
+    this.events.once("destroy", () => this.music.stop());
   }
 
   createTouchControls() {
