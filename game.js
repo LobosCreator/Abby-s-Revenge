@@ -133,7 +133,7 @@ class MainScene extends Phaser.Scene {
 
     this.nextDistanceScore = 25;
     this.planesShotDown = 0;
-    this.nextBossAt = 20;
+    this.nextBossAt = 30;
     this.boss = null;
   }
 
