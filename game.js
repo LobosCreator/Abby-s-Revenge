@@ -15,6 +15,7 @@ class TitleScene extends Phaser.Scene {
     this.load.image("treat", "assets/treat.png");
     // Optional boss art (falls back to enemy if missing)
     this.load.image("boss", "assets/boss.png");
+    this.load.image("game over", "assets/game over.png");
   }
 
   create() {
@@ -44,6 +45,52 @@ class TitleScene extends Phaser.Scene {
     this.input.once("pointerdown", start);
     this.input.keyboard.once("keydown-SPACE", start);
     this.input.keyboard.once("keydown-ENTER", start);
+  }
+}
+
+class GameOverScene extends Phaser.Scene {
+  constructor() {
+    super("gameover");
+  }
+
+  create(data) {
+    const { width, height } = this.scale;
+    this.cameras.main.setBackgroundColor("#1f1f29");
+
+    const score = data?.score ?? 0;
+    const distance = Math.floor(data?.distance ?? 0);
+    const kills = data?.kills ?? 0;
+
+    this.add.text(width / 2, height * 0.3, "GAME OVER", {
+      fontFamily: "system-ui, Segoe UI, Roboto, Arial",
+      fontSize: "64px",
+      color: "#ffffff",
+      stroke: "#6f1d1d",
+      strokeThickness: 8
+    }).setOrigin(0.5);
+
+    this.add.text(width / 2, height * 0.5, `Score: ${score}\nDistance: ${distance}m\nKills: ${kills}`, {
+      fontFamily: "system-ui, Segoe UI, Roboto, Arial",
+      fontSize: "28px",
+      color: "#ffffff",
+      align: "center"
+    }).setOrigin(0.5);
+
+    this.add.text(width / 2, height * 0.78, "Press R / Space / Enter to Restart\nPress T for Title", {
+      fontFamily: "system-ui, Segoe UI, Roboto, Arial",
+      fontSize: "24px",
+      color: "#f0e68c",
+      align: "center"
+    }).setOrigin(0.5);
+
+    const restart = () => this.scene.start("main");
+    const title = () => this.scene.start("title");
+
+    this.input.once("pointerdown", restart);
+    this.input.keyboard.once("keydown-R", restart);
+    this.input.keyboard.once("keydown-SPACE", restart);
+    this.input.keyboard.once("keydown-ENTER", restart);
+    this.input.keyboard.once("keydown-T", title);
   }
 }
 
